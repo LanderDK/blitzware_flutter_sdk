@@ -9,7 +9,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('BlitzWare SDK Test'),
         actions: [
           BlitzWareLogoutButton(
             text: 'Logout',
@@ -24,10 +24,9 @@ class DashboardScreen extends StatelessWidget {
       body: Consumer<BlitzWareAuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
-          if (user == null) {
-            return const Center(child: Text('No user data available'));
-          }
-
+          final isLoading = authProvider.isLoading;
+          final error = authProvider.error;
+          
           return RefreshIndicator(
             onRefresh: () async {
               await authProvider.refresh();
@@ -38,37 +37,156 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Welcome Section
-                  _buildWelcomeCard(context, user),
-                  const SizedBox(height: 16),
-
-                  // Role-Based Content
-                  RoleGuard(
-                    role: 'admin',
-                    child: Column(
-                      children: [
-                        _buildAdminSection(context),
-                        const SizedBox(height: 16),
-                      ],
+                  // Title
+                  Text(
+                    'BlitzWare SDK Test',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  RoleGuard(
-                    role: 'premium',
-                    child: Column(
-                      children: [
-                        _buildPremiumSection(context),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-
-                  // Standard User Section (always visible when authenticated)
-                  _buildUserSection(context, user),
                   const SizedBox(height: 16),
 
-                  // Role Summary
-                  _buildRoleSummary(context, authProvider),
+                  // Authentication Status
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Authentication Status:',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isLoading
+                                ? 'Loading...'
+                                : authProvider.isAuthenticated
+                                    ? 'Authenticated'
+                                    : 'Not Authenticated',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          
+                          if (error != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Error:',
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    error.message,
+                                    style: TextStyle(color: Colors.red.shade700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          if (user != null) ...[
+                            const SizedBox(height: 16),
+                            Text(
+                              'User Info:',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInfoRow('ID', user.id),
+                            _buildInfoRow('Email', user.email),
+                            _buildInfoRow('Username', user.username),
+                            _buildInfoRow(
+                              'Roles', 
+                              user.roleNames.isNotEmpty ? user.roleNames.join(', ') : 'N/A'
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Role-based content
+                  if (user != null && authProvider.hasRole('admin')) ...[
+                    Card(
+                      color: Colors.red.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.admin_panel_settings, color: Colors.red.shade600),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Admin Access',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'You have administrator privileges. Check the Admin tab for more options.',
+                              style: TextStyle(color: Colors.red.shade700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  if (user != null && authProvider.hasRole('premium')) ...[
+                    Card(
+                      color: Colors.amber.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.star, color: Colors.amber.shade600),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Premium User',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'You have premium access to enhanced features.',
+                              style: TextStyle(color: Colors.amber.shade700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ],
               ),
             ),
@@ -426,6 +544,33 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ))
           .toList(),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w400),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

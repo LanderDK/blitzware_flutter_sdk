@@ -19,3 +19,16 @@ export 'src/widgets/auth_widgets.dart';
 
 // Utils
 export 'src/utils/auth_utils.dart';
+
+// Utility Functions (matching React Native SDK exports)
+export 'src/utils/auth_utils.dart' show 
+  hasRole,
+  hasAnyRole, 
+  hasAllRoles,
+  getUserRoles,
+  getUserDisplayName,
+  isTokenExpired,
+  generateRandomString,
+  validateConfig,
+  generateCodeVerifier,
+  generateCodeChallenge;

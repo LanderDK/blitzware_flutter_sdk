@@ -14,10 +14,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // BlitzWare configuration
-    final blitzwareConfig = BlitzWareConfig(
+    const blitzwareConfig = BlitzWareConfig(
       clientId: 'your-client-id',
       redirectUri: 'com.example.blitzware://callback',
-      responseType: 'code', // or 'token'
+      responseType: 'code', // or "token" for implicit flow
     );
 
     // Create authentication service

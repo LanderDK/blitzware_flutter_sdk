@@ -74,7 +74,7 @@ class BlitzWareAuthService {
       final user = await _fetchUserInfo(response.accessToken!);
       await _storeUser(user);
 
-      _logger.info('Authentication successful for user: ${user.sub}');
+      _logger.info('Authentication successful for user: ${user.id}');
       return user;
     } catch (e) {
       _logger.severe('Authentication failed: $e');
@@ -330,5 +330,136 @@ class BlitzWareAuthService {
     final bytes = utf8.encode(verifier);
     final digest = sha256.convert(bytes);
     return base64Url.encode(digest.bytes).replaceAll('=', '');
+  }
+
+  /// Get current access token without validation (faster, but may be expired)
+  /// Use this for non-critical operations or when you handle validation separately
+  Future<String?> getAccessTokenFast() async {
+    try {
+      return await _secureStorage.read(key: _accessTokenKey);
+    } catch (e) {
+      _logger.warning('Failed to get access token fast: $e');
+      return null;
+    }
+  }
+
+  /// Refresh the access token using refresh token (public method)
+  Future<String?> refreshAccessToken() async {
+    return await _refreshAccessToken();
+  }
+
+  /// Get current authenticated user from storage only (no server validation)
+  /// Use this for UI updates where you don't need fresh data
+  Future<BlitzWareUser?> getUserFromStorage() async {
+    try {
+      final userJson = await _secureStorage.read(key: _userKey);
+      if (userJson == null) return null;
+
+      final userMap = jsonDecode(userJson) as Map<String, dynamic>;
+      return BlitzWareUser.fromJson(userMap);
+    } catch (e) {
+      _logger.warning('Failed to get user from storage: $e');
+      return null;
+    }
+  }
+
+  /// Check if user has a specific role
+  Future<bool> hasRole(String roleName) async {
+    try {
+      final user = await getUserFromStorage();
+      if (user == null || user.roles == null) return false;
+
+      return user.roles!.any((role) {
+        if (role is String) {
+          return role.toLowerCase() == roleName.toLowerCase();
+        } else if (role is Map<String, dynamic>) {
+          return role['name']?.toString().toLowerCase() ==
+              roleName.toLowerCase();
+        } else if (role is BlitzWareRole) {
+          return role.name.toLowerCase() == roleName.toLowerCase();
+        }
+        return false;
+      });
+    } catch (e) {
+      _logger.warning('Failed to check role: $e');
+      return false;
+    }
+  }
+
+  /// Validate access token with authorization server
+  /// Returns true if token is valid, false otherwise
+  Future<bool> validateAccessToken() async {
+    try {
+      final accessToken = await getAccessTokenFast();
+      if (accessToken == null) return false;
+
+      // Try to introspect the token
+      final introspection = await introspectToken(accessToken);
+      return introspection.active;
+    } catch (e) {
+      _logger.warning('Token validation failed: $e');
+      return false;
+    }
+  }
+
+  /// Introspect a token to check its validity and get metadata
+  /// Implements RFC 7662 OAuth2 Token Introspection
+  Future<TokenIntrospectionResponse> introspectToken(
+    String token, {
+    String? tokenTypeHint,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${_config.issuer}/oauth/introspect'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: {
+          'token': token,
+          'client_id': _config.clientId,
+          if (tokenTypeHint != null) 'token_type_hint': tokenTypeHint,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw TokenException(
+          'Token introspection failed: ${response.statusCode} ${response.reasonPhrase}',
+        );
+      }
+
+      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      return TokenIntrospectionResponse.fromJson(responseData);
+    } catch (e) {
+      _logger.severe('Token introspection failed: $e');
+      if (e is BlitzWareException) rethrow;
+      throw TokenException('Token introspection failed: $e');
+    }
+  }
+
+  /// Get stored token (public method matching React Native SDK)
+  Future<String?> getStoredToken(String type) async {
+    try {
+      switch (type) {
+        case 'access_token':
+          return await _secureStorage.read(key: _accessTokenKey);
+        case 'refresh_token':
+          return await _secureStorage.read(key: _refreshTokenKey);
+        case 'id_token':
+          return await _secureStorage.read(key: _idTokenKey);
+        default:
+          throw ArgumentError('Invalid token type: $type');
+      }
+    } catch (e) {
+      _logger.warning('Failed to get stored token: $e');
+      return null;
+    }
+  }
+
+  /// Check if a token is expired (with buffer)
+  bool isTokenExpired(DateTime? expiresAt,
+      {Duration buffer = const Duration(minutes: 5)}) {
+    if (expiresAt == null) return false;
+    return DateTime.now().isAfter(expiresAt.subtract(buffer));
   }
 }

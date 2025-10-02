@@ -148,3 +148,125 @@ class NetworkException extends BlitzWareException {
 class ConfigurationException extends BlitzWareException {
   const ConfigurationException(super.message, {super.code, super.originalError});
 }
+
+/// Token introspection response (RFC 7662 OAuth2 Token Introspection)
+class TokenIntrospectionResponse {
+  final bool active;
+  final String? clientId;
+  final String? username;
+  final String? scope;
+  final String? sub;
+  final String? aud;
+  final String? iss;
+  final int? exp;
+  final int? iat;
+  final String? tokenType;
+  final Map<String, dynamic>? additionalProperties;
+
+  const TokenIntrospectionResponse({
+    required this.active,
+    this.clientId,
+    this.username,
+    this.scope,
+    this.sub,
+    this.aud,
+    this.iss,
+    this.exp,
+    this.iat,
+    this.tokenType,
+    this.additionalProperties,
+  });
+
+  factory TokenIntrospectionResponse.fromJson(Map<String, dynamic> json) {
+    // Extract known fields
+    final knownFields = {
+      'active', 'client_id', 'username', 'scope', 'sub', 'aud', 'iss', 
+      'exp', 'iat', 'token_type'
+    };
+    final additionalProperties = <String, dynamic>{};
+    
+    // Store any additional properties
+    for (final entry in json.entries) {
+      if (!knownFields.contains(entry.key)) {
+        additionalProperties[entry.key] = entry.value;
+      }
+    }
+
+    return TokenIntrospectionResponse(
+      active: json['active'] as bool,
+      clientId: json['client_id'] as String?,
+      username: json['username'] as String?,
+      scope: json['scope'] as String?,
+      sub: json['sub'] as String?,
+      aud: json['aud'] as String?,
+      iss: json['iss'] as String?,
+      exp: json['exp'] as int?,
+      iat: json['iat'] as int?,
+      tokenType: json['token_type'] as String?,
+      additionalProperties: additionalProperties.isNotEmpty ? additionalProperties : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'active': active,
+      if (clientId != null) 'client_id': clientId,
+      if (username != null) 'username': username,
+      if (scope != null) 'scope': scope,
+      if (sub != null) 'sub': sub,
+      if (aud != null) 'aud': aud,
+      if (iss != null) 'iss': iss,
+      if (exp != null) 'exp': exp,
+      if (iat != null) 'iat': iat,
+      if (tokenType != null) 'token_type': tokenType,
+    };
+
+    // Add any additional properties
+    if (additionalProperties != null) {
+      json.addAll(additionalProperties!);
+    }
+
+    return json;
+  }
+}
+
+/// Authentication error codes matching React Native SDK
+enum AuthErrorCode {
+  configurationError,
+  networkError,
+  authenticationFailed,
+  tokenExpired,
+  refreshFailed,
+  logoutFailed,
+  userInfoFailed,
+  storageError,
+  introspectionFailed,
+  unknownError,
+}
+
+extension AuthErrorCodeExtension on AuthErrorCode {
+  String get code {
+    switch (this) {
+      case AuthErrorCode.configurationError:
+        return 'configuration_error';
+      case AuthErrorCode.networkError:
+        return 'network_error';
+      case AuthErrorCode.authenticationFailed:
+        return 'authentication_failed';
+      case AuthErrorCode.tokenExpired:
+        return 'token_expired';
+      case AuthErrorCode.refreshFailed:
+        return 'refresh_failed';
+      case AuthErrorCode.logoutFailed:
+        return 'logout_failed';
+      case AuthErrorCode.userInfoFailed:
+        return 'user_info_failed';
+      case AuthErrorCode.storageError:
+        return 'storage_error';
+      case AuthErrorCode.introspectionFailed:
+        return 'introspection_failed';
+      case AuthErrorCode.unknownError:
+        return 'unknown_error';
+    }
+  }
+}

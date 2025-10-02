@@ -116,6 +116,56 @@ class BlitzWareAuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Get current access token without validation (faster)
+  Future<String?> getAccessTokenFast() async {
+    try {
+      return await _authService.getAccessTokenFast();
+    } catch (e) {
+      _logger.warning('Failed to get access token fast: $e');
+      return null;
+    }
+  }
+
+  /// Refresh access token using refresh token
+  Future<String?> refreshAccessToken() async {
+    try {
+      return await _authService.refreshAccessToken();
+    } catch (e) {
+      _logger.warning('Failed to refresh access token: $e');
+      return null;
+    }
+  }
+
+  /// Get user from storage only (no server validation)
+  Future<BlitzWareUser?> getUserFromStorage() async {
+    try {
+      return await _authService.getUserFromStorage();
+    } catch (e) {
+      _logger.warning('Failed to get user from storage: $e');
+      return null;
+    }
+  }
+
+  /// Validate current access token with server
+  Future<bool> validateAccessToken() async {
+    try {
+      return await _authService.validateAccessToken();
+    } catch (e) {
+      _logger.warning('Failed to validate access token: $e');
+      return false;
+    }
+  }
+
+  /// Check role asynchronously (fetches latest user data)
+  Future<bool> hasRoleAsync(String roleName) async {
+    try {
+      return await _authService.hasRole(roleName);
+    } catch (e) {
+      _logger.warning('Failed to check role: $e');
+      return false;
+    }
+  }
+
   /// Refresh authentication state
   Future<void> refresh() async {
     await _initialize();
