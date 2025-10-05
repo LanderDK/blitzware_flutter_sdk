@@ -23,24 +23,21 @@ class AuthStateBuilder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BlitzWareAuthProvider>(
       builder: (context, authProvider, child) {
-        switch (authProvider.state) {
-          case AuthenticationState.loading:
-            return loading?.call(context) ?? const Center(child: CircularProgressIndicator());
-          
-          case AuthenticationState.authenticated:
-            return authenticated(context);
-          
-          case AuthenticationState.unauthenticated:
-            return unauthenticated(context);
-          
-          case AuthenticationState.error:
-            if (error != null && authProvider.error != null) {
-              return error!(context, authProvider.error!);
-            }
-            return unauthenticated(context);
-          
-          case AuthenticationState.unknown:
-            return loading?.call(context) ?? const Center(child: CircularProgressIndicator());
+        // Handle loading state
+        if (authProvider.isLoading) {
+          return loading?.call(context) ?? const Center(child: CircularProgressIndicator());
+        }
+        
+        // Handle error state
+        if (authProvider.error != null && error != null) {
+          return error!(context, authProvider.error!);
+        }
+        
+        // Handle authenticated/unauthenticated state
+        if (authProvider.isAuthenticated) {
+          return authenticated(context);
+        } else {
+          return unauthenticated(context);
         }
       },
     );
@@ -86,7 +83,7 @@ class UnauthenticatedGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BlitzWareAuthProvider>(
       builder: (context, authProvider, _) {
-        if (authProvider.isUnauthenticated) {
+        if (!authProvider.isAuthenticated) {
           return child;
         }
         return fallback ?? const SizedBox.shrink();
@@ -303,11 +300,10 @@ class UserInfoDisplay extends StatelessWidget {
                       user.displayName,
                       style: nameStyle ?? Theme.of(context).textTheme.titleMedium,
                     ),
-                    if (user.email != null)
-                      Text(
-                        user.email!,
-                        style: emailStyle ?? Theme.of(context).textTheme.bodyMedium,
-                      ),
+                    Text(
+                      user.email,
+                      style: emailStyle ?? Theme.of(context).textTheme.bodyMedium,
+                    ),
                     if (showRoles && user.roleNames.isNotEmpty)
                       Wrap(
                         spacing: 4,

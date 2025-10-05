@@ -11,18 +11,21 @@ class BlitzWareAuthProvider extends ChangeNotifier {
   final BlitzWareAuthService _authService;
   final Logger _logger = Logger('BlitzWareAuthProvider');
 
-  AuthenticationState _state = AuthenticationState.unknown;
+  bool _isAuthenticated = false;
+  bool _isLoading = true;
   BlitzWareUser? _user;
   BlitzWareException? _error;
-  bool _isLoading = false;
 
   BlitzWareAuthProvider({required BlitzWareAuthService authService})
       : _authService = authService {
-    _initialize();
+    _initializeAuth();
   }
 
-  /// Current authentication state
-  AuthenticationState get state => _state;
+  /// Whether user is authenticated
+  bool get isAuthenticated => _isAuthenticated;
+
+  /// Whether authentication is in progress
+  bool get isLoading => _isLoading;
 
   /// Current authenticated user
   BlitzWareUser? get user => _user;
@@ -30,41 +33,63 @@ class BlitzWareAuthProvider extends ChangeNotifier {
   /// Current error, if any
   BlitzWareException? get error => _error;
 
-  /// Whether authentication is in progress
-  bool get isLoading => _isLoading;
-
-  /// Whether user is authenticated
-  bool get isAuthenticated => _state == AuthenticationState.authenticated;
-
-  /// Whether user is unauthenticated
-  bool get isUnauthenticated => _state == AuthenticationState.unauthenticated;
-
   /// Initialize authentication state
-  Future<void> _initialize() async {
+  Future<void> _initializeAuth() async {
     try {
       _setLoading(true);
       _clearError();
 
-      final isAuth = await _authService.isAuthenticated();
-      if (isAuth) {
+      // First check if we have a stored access token
+      final hasStoredToken = await _authService.getStoredToken('access_token');
+
+      if (hasStoredToken == null) {
+        // No token available - user is not authenticated
+        _setUnauthenticated();
+        return;
+      }
+
+      // Validate token with server
+      final isValid = await _authService.isAuthenticated();
+
+      if (!isValid) {
+        // Token is invalid or expired, try to refresh
+        try {
+          await _authService.refreshAccessToken();
+          // After successful refresh, fetch user info
+          final user = await _authService.getUser();
+          if (user != null) {
+            _setAuthenticated(user);
+          } else {
+            _setUnauthenticated();
+          }
+        } catch (refreshError) {
+          // Refresh failed, clear everything
+          _logger.warning('Token refresh during initialization failed: $refreshError');
+          await _authService.logout();
+          _setUnauthenticated();
+        }
+      } else {
+        // Token is valid, get user info
         final user = await _authService.getUser();
         if (user != null) {
           _setAuthenticated(user);
         } else {
           _setUnauthenticated();
         }
-      } else {
-        _setUnauthenticated();
       }
-    } catch (e) {
-      _logger.severe('Initialization failed: $e');
-      _setError(e is BlitzWareException ? e : BlitzWareException('Initialization failed: $e'));
-    } finally {
-      _setLoading(false);
+    } catch (error) {
+      // On any error, treat as unauthenticated
+      _logger.warning('Initialization failed: $error');
+      _setError(
+        error is BlitzWareException 
+          ? error 
+          : BlitzWareException('Authentication check failed: $error')
+      );
+      _setUnauthenticated();
     }
   }
 
-  /// Authenticate user
+  /// Authenticate user (login)
   Future<void> login() async {
     try {
       _setLoading(true);
@@ -72,15 +97,15 @@ class BlitzWareAuthProvider extends ChangeNotifier {
       _logger.info('Starting login');
 
       final user = await _authService.login();
+      
       _setAuthenticated(user);
       _logger.info('Login successful');
     } catch (e) {
       _logger.severe('Login failed: $e');
       final error = e is BlitzWareException ? e : AuthenticationException('Login failed: $e');
       _setError(error);
-      rethrow;
-    } finally {
       _setLoading(false);
+      rethrow;
     }
   }
 
@@ -92,88 +117,77 @@ class BlitzWareAuthProvider extends ChangeNotifier {
       _logger.info('Starting logout');
 
       await _authService.logout();
+      
       _setUnauthenticated();
       _logger.info('Logout successful');
     } catch (e) {
       _logger.severe('Logout failed: $e');
       final error = e is BlitzWareException ? e : AuthenticationException('Logout failed: $e');
       _setError(error);
-      // Still set as unauthenticated even if logout fails
-      _setUnauthenticated();
-      rethrow;
-    } finally {
       _setLoading(false);
+      rethrow;
     }
   }
 
-  /// Get current access token
+  /// Get access token with automatic validation/refresh
   Future<String?> getAccessToken() async {
     try {
       return await _authService.getAccessToken();
-    } catch (e) {
-      _logger.warning('Failed to get access token: $e');
+    } catch (error) {
+      _logger.warning('Failed to get access token: $error');
+      _setError(
+        error is BlitzWareException
+          ? error
+          : BlitzWareException('Failed to get access token: $error')
+      );
       return null;
     }
   }
 
-  /// Get current access token without validation (faster)
-  Future<String?> getAccessTokenFast() async {
+  /// Validate current session
+  Future<bool> validateSession() async {
     try {
-      return await _authService.getAccessTokenFast();
-    } catch (e) {
-      _logger.warning('Failed to get access token fast: $e');
-      return null;
-    }
-  }
+      final isValid = await _authService.isAuthenticated();
 
-  /// Refresh access token using refresh token
-  Future<String?> refreshAccessToken() async {
-    try {
-      return await _authService.refreshAccessToken();
-    } catch (e) {
-      _logger.warning('Failed to refresh access token: $e');
-      return null;
-    }
-  }
+      if (!isValid) {
+        // Try to refresh
+        try {
+          await _authService.refreshAccessToken();
+          return true;
+        } catch (refreshError) {
+          // Refresh failed, clear session
+          _logger.warning('Session validation refresh failed: $refreshError');
+          _setUnauthenticated();
+          return false;
+        }
+      }
 
-  /// Get user from storage only (no server validation)
-  Future<BlitzWareUser?> getUserFromStorage() async {
-    try {
-      return await _authService.getUserFromStorage();
-    } catch (e) {
-      _logger.warning('Failed to get user from storage: $e');
-      return null;
-    }
-  }
-
-  /// Validate current access token with server
-  Future<bool> validateAccessToken() async {
-    try {
-      return await _authService.validateAccessToken();
-    } catch (e) {
-      _logger.warning('Failed to validate access token: $e');
+      return true;
+    } catch (error) {
+      _logger.warning('Session validation failed: $error');
       return false;
     }
-  }
-
-  /// Check role asynchronously (fetches latest user data)
-  Future<bool> hasRoleAsync(String roleName) async {
-    try {
-      return await _authService.hasRole(roleName);
-    } catch (e) {
-      _logger.warning('Failed to check role: $e');
-      return false;
-    }
-  }
-
-  /// Refresh authentication state
-  Future<void> refresh() async {
-    await _initialize();
   }
 
   /// Check if user has a specific role
-  bool hasRole(String roleName) {
-    return _user?.hasRole(roleName) ?? false;
+  bool hasRole(String role) {
+    if (_user == null || _user!.roles == null) {
+      return false;
+    }
+
+    return _user!.roles!.any(
+      (userRole) {
+        if (userRole is String) {
+          return userRole.toLowerCase() == role.toLowerCase();
+        } else if (userRole is Map<String, dynamic>) {
+          final name = userRole['name'];
+          if (name is String) {
+            return name.toLowerCase() == role.toLowerCase();
+          }
+        }
+        return false;
+      }
+    );
   }
 
   /// Check if user has any of the specified roles
@@ -192,9 +206,15 @@ class BlitzWareAuthProvider extends ChangeNotifier {
   /// Get user's role names
   List<String> get userRoles => _user?.roleNames ?? [];
 
+  /// Refresh authentication state
+  Future<void> refresh() async {
+    await _initializeAuth();
+  }
+
   /// Set authenticated state
   void _setAuthenticated(BlitzWareUser user) {
-    _state = AuthenticationState.authenticated;
+    _isAuthenticated = true;
+    _isLoading = false;
     _user = user;
     _error = null;
     notifyListeners();
@@ -202,7 +222,8 @@ class BlitzWareAuthProvider extends ChangeNotifier {
 
   /// Set unauthenticated state
   void _setUnauthenticated() {
-    _state = AuthenticationState.unauthenticated;
+    _isAuthenticated = false;
+    _isLoading = false;
     _user = null;
     _error = null;
     notifyListeners();
@@ -211,15 +232,11 @@ class BlitzWareAuthProvider extends ChangeNotifier {
   /// Set loading state
   void _setLoading(bool loading) {
     _isLoading = loading;
-    if (loading) {
-      _state = AuthenticationState.loading;
-    }
     notifyListeners();
   }
 
   /// Set error state
   void _setError(BlitzWareException error) {
-    _state = AuthenticationState.error;
     _error = error;
     notifyListeners();
   }
@@ -227,7 +244,6 @@ class BlitzWareAuthProvider extends ChangeNotifier {
   /// Clear current error
   void _clearError() {
     _error = null;
-    notifyListeners();
   }
 
   /// Clear error manually

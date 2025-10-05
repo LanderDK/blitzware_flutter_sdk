@@ -20,7 +20,7 @@ export 'src/widgets/auth_widgets.dart';
 // Utils
 export 'src/utils/auth_utils.dart';
 
-// Utility Functions (matching React Native SDK exports)
+// Utility Functions
 export 'src/utils/auth_utils.dart' show 
   hasRole,
   hasAnyRole, 
