@@ -26,20 +26,10 @@ A redirect URI is a URL in your application where BlitzWare redirects the user a
 
 ## 2) Install the BlitzWare Flutter SDK
 
-Add the BlitzWare Flutter SDK to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  blitzware_flutter_sdk:
-    git:
-      url: https://github.com/LanderDK/blitzware_flutter_sdk.git
-      ref: master
-```
-
-Then run:
+Run the following command within your project directory to install the [BlitzWare Flutter SDK](https://pub.dev/packages/blitzware_flutter_sdk):
 
 ```bash
-flutter pub get
+flutter pub add blitzware_flutter_sdk
 ```
 
 ### Prerequisites

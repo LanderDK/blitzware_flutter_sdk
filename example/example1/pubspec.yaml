@@ -31,9 +31,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # BlitzWare SDK
-  blitzware_flutter_sdk:
-    path: ../..
+  # BlitzWare SDK (dev/local)
+  # blitzware_flutter_sdk:
+  #   path: ../..
+
+  # BlitzWare SDK (pub.dev)
+  blitzware_flutter_sdk: ^1.0.0
 
   # State Management
   provider: ^6.1.1
