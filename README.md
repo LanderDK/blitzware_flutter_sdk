@@ -2,7 +2,7 @@
 
 This guide demonstrates how to add user authentication to a Flutter application using BlitzWare.
 
-This tutorial is based on the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/examples/example1).
+This tutorial is based on the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/example/example1).
 
 1. [Configure BlitzWare](#1-configure-blitzware)
 2. [Install the BlitzWare Flutter SDK](#2-install-the-blitzware-flutter-sdk)
@@ -790,4 +790,4 @@ class _ProtectedScreenState extends State<ProtectedScreen> {
 
 That's it! You now have a fully functional Flutter application with BlitzWare authentication.
 
-For more information, check out the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/examples/example1) which demonstrates all these features and more.
+For more information, check out the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/example/example1) which demonstrates all these features and more.
