@@ -1,292 +1,83 @@
-# BlitzWare Flutter SDK
+# Flutter
 
-A comprehensive Flutter SDK for BlitzWare authentication with role-based access control, built for cross-platform mobile applications.
+This guide demonstrates how to add user authentication to a Flutter application using BlitzWare.
 
-## Features
+This tutorial is based on the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/examples/example1).
 
-- **OAuth 2.0 Authentication** with PKCE (Proof Key for Code Exchange)
-- **Role-based Access Control** (Admin, Premium, Moderator, User)
-- **Secure Token Storage** using Flutter Secure Storage
-- **Cross-platform Support** (iOS and Android)
-- **Provider State Management** integration
-- **Automatic Token Refresh** handling
-- **Comprehensive Error Handling**
-- **TypeScript-like Type Safety** with Dart
+1. [Configure BlitzWare](#1-configure-blitzware)
+2. [Install the BlitzWare Flutter SDK](#2-install-the-blitzware-flutter-sdk)
+3. [Implementation Guide](#3-implementation-guide)
 
-## Quick Start
+---
 
-### Installation
+## 1) Configure BlitzWare
 
-Add to your `pubspec.yaml`:
+### Get Your Application Keys
+
+You will need some details about your application to communicate with BlitzWare. You can get these details from the **Application Settings** section in the BlitzWare dashboard.
+
+**You need the Client ID.**
+
+### Configure Redirect URIs
+
+A redirect URI is a URL in your application where BlitzWare redirects the user after they have authenticated. The redirect URI for your app must be added to the **Redirect URIs** list in your **Application Settings** under the **Security** tab. If this is not set, users will be unable to log in to the application and will get an error.
+
+---
+
+## 2) Install the BlitzWare Flutter SDK
+
+Add the BlitzWare Flutter SDK to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   blitzware_flutter_sdk:
-    path: ../path/to/blitzware-flutter-sdk
+    git:
+      url: https://github.com/LanderDK/blitzware_flutter_sdk.git
+      ref: master
 ```
 
-### Basic Setup
+Then run:
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
-
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => BlitzWareAuthProvider(
-            BlitzWareAuthService(
-              clientId: 'your-client-id',
-              redirectUrl: 'your-app://auth',
-              responseType: 'code', // or 'token'
-            ),
-          ),
-        ),
-      ],
-      child: MaterialApp(
-        title: 'BlitzWare App',
-        home: AuthenticationWrapper(),
-      ),
-    );
-  }
-}
-
-class AuthenticationWrapper extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<BlitzWareAuthProvider>(
-      builder: (context, authProvider, _) {
-        if (authProvider.isLoading) {
-          return Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        
-        return authProvider.isAuthenticated
-            ? HomeScreen()
-            : LoginScreen();
-      },
-    );
-  }
-}
+```bash
+flutter pub get
 ```
 
-### Authentication
+### Prerequisites
 
-```dart
-class LoginScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () async {
-            final authProvider = context.read<BlitzWareAuthProvider>();
-            try {
-              await authProvider.login();
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Login failed: $e')),
-              );
-            }
-          },
-          child: Text('Login with BlitzWare'),
-        ),
-      ),
-    );
-  }
-}
-```
+This SDK requires Flutter 3.0.0 or higher and includes the following key dependencies:
 
-### Role-based Access Control
+- `flutter_appauth` - For OAuth 2.0 authentication with PKCE
+- `flutter_secure_storage` - For secure token storage
+- `provider` - For state management
+- `http` - For API communication
 
-```dart
-class HomeScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Home')),
-      body: Consumer<BlitzWareAuthProvider>(
-        builder: (context, authProvider, _) {
-          final user = authProvider.user!;
-          
-          return Column(
-            children: [
-              Text('Welcome, ${user.name}!'),
-              
-              // Admin-only content
-              if (user.isAdmin)
-                AdminOnlyWidget(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AdminPanel()),
-                    ),
-                    child: Text('Admin Panel'),
-                  ),
-                ),
-              
-              // Premium-only content
-              if (user.isPremium)
-                PremiumOnlyWidget(
-                  child: Card(
-                    child: ListTile(
-                      title: Text('Premium Features'),
-                      subtitle: Text('Access exclusive content'),
-                      trailing: Icon(Icons.star),
-                    ),
-                  ),
-                ),
-              
-              // Regular user content
-              ElevatedButton(
-                onPressed: () async {
-                  await authProvider.logout();
-                },
-                child: Text('Logout'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-```
+These dependencies are automatically installed with the SDK.
 
-## API Reference
+### Platform Setup
 
-### BlitzWareAuthService
+#### iOS Setup
 
-The core authentication service:
-
-```dart
-final authService = BlitzWareAuthService(
-  clientId: 'your-client-id',
-  redirectUrl: 'your-app://auth',
-  discoveryUrl: 'https://auth.example.com/.well-known/openid_configuration',
-  scopes: ['openid', 'profile', 'email', 'roles'],
-  additionalParameters: {'prompt': 'login'}, // Optional
-  debugMode: false, // Optional debug logging
-);
-
-// Authenticate user
-final result = await authService.login();
-
-// Get stored access token
-final token = await authService.getAccessToken();
-
-// Refresh tokens
-await authService.refresh();
-
-// Logout and clear tokens
-await authService.logout();
-```
-
-### BlitzWareAuthProvider
-
-Provider for state management:
-
-```dart
-final authProvider = BlitzWareAuthProvider(authService);
-
-// Properties
-bool get isAuthenticated => authProvider.isAuthenticated;
-bool get isLoading => authProvider.isLoading;
-BlitzWareUser? get user => authProvider.user;
-String? get error => authProvider.error;
-
-// Methods
-await authProvider.login();
-await authProvider.logout();
-await authProvider.refresh();
-final token = await authProvider.getAccessToken();
-```
-
-### BlitzWareUser
-
-User model with role checking:
-
-```dart
-final user = authProvider.user!;
-
-// Basic properties
-String get sub => user.sub;
-String? get name => user.name;
-String? get email => user.email;
-String? get username => user.username;
-String? get picture => user.picture;
-bool get isEmailVerified => user.isEmailVerified;
-
-// Role checking
-bool get isAdmin => user.isAdmin;
-bool get isPremium => user.isPremium;
-bool get isModerator => user.isModerator;
-List<String> get roleNames => user.roleNames;
-
-// Utility methods
-bool hasRole(String role) => user.hasRole(role);
-String get initials => user.initials;
-String get formattedUpdatedAt => user.formattedUpdatedAt;
-Map<String, dynamic> toJson() => user.toJson();
-```
-
-### Role-based Widgets
-
-Convenient widgets for role-based UI:
-
-```dart
-// Admin-only widget
-AdminOnlyWidget(
-  child: Text('Admin Content'),
-  fallback: Text('Access Denied'), // Optional
-)
-
-// Premium-only widget
-PremiumOnlyWidget(
-  child: Text('Premium Content'),
-  fallback: UpgradePrompt(), // Optional
-)
-
-// Custom role widget
-RoleBasedWidget(
-  allowedRoles: ['admin', 'moderator'],
-  child: Text('Admin or Moderator Content'),
-  fallback: Text('Insufficient Permissions'), // Optional
-)
-```
-
-## Platform Configuration
-
-### iOS Setup
-
-Add to `ios/Runner/Info.plist`:
+1. Add URL scheme to your `ios/Runner/Info.plist`:
 
 ```xml
 <key>CFBundleURLTypes</key>
 <array>
     <dict>
         <key>CFBundleURLName</key>
-        <string>your-app.auth</string>
+        <string>com.yourcompany.yourapp</string>
         <key>CFBundleURLSchemes</key>
         <array>
-            <string>your-app</string>
+            <string>yourapp</string>
         </array>
     </dict>
 </array>
 ```
 
-### Android Setup
+Replace `yourapp` with your actual app scheme.
 
-Add to `android/app/src/main/AndroidManifest.xml`:
+#### Android Setup
+
+1. Add the redirect URI receiver activity to `android/app/src/main/AndroidManifest.xml` inside the `<application>` tag:
 
 ```xml
 <activity
@@ -296,133 +87,707 @@ Add to `android/app/src/main/AndroidManifest.xml`:
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="your-app" android:host="auth" />
+        <data android:scheme="yourapp" />
     </intent-filter>
 </activity>
 ```
 
-## Dependencies
+Replace `yourapp` with your actual app scheme.
 
-Core dependencies included:
+---
 
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-  flutter_appauth: ^6.0.2
-  flutter_secure_storage: ^9.0.0
-  provider: ^6.0.5
-  http: ^1.1.0
-```
+## 3) Implementation Guide
 
-## Examples
+Follow this step-by-step guide to implement authentication in your app.
 
-Check out the comprehensive example app:
+### Step 1: Configure the Provider
 
-```bash
-cd examples/blitzware_flutter_role_check_example
-flutter pub get
-flutter run
-```
-
-The example demonstrates:
-- Complete authentication flow
-- Role-based dashboard
-- User profile management
-- Token handling
-- Error scenarios
-
-## Error Handling
-
-The SDK provides comprehensive error handling:
+Wrap your app with the `BlitzWareAuthProvider` at the root level in your `main.dart`:
 
 ```dart
-try {
-  await authProvider.login();
-} on BlitzWareAuthException catch (e) {
-  switch (e.type) {
-    case BlitzWareAuthExceptionType.userCancelled:
-      print('User cancelled login');
-      break;
-    case BlitzWareAuthExceptionType.networkError:
-      print('Network error: ${e.message}');
-      break;
-    case BlitzWareAuthExceptionType.invalidConfiguration:
-      print('Configuration error: ${e.message}');
-      break;
-    case BlitzWareAuthExceptionType.tokenExpired:
-      print('Token expired, refreshing...');
-      await authProvider.refresh();
-      break;
-    default:
-      print('Auth error: ${e.message}');
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // BlitzWare configuration
+    const blitzwareConfig = BlitzWareConfig(
+      clientId: 'your-client-id',
+      redirectUri: 'yourapp://callback',
+      responseType: 'code', // OAuth 2.0 authorization code flow
+    );
+
+    // Create authentication service
+    final authService = BlitzWareAuthService(config: blitzwareConfig);
+
+    return ChangeNotifierProvider(
+      create: (context) => BlitzWareAuthProvider(authService: authService),
+      child: MaterialApp(
+        title: 'BlitzWare Flutter App',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        home: const HomeScreen(),
+      ),
+    );
   }
-} catch (e) {
-  print('Unexpected error: $e');
 }
 ```
 
-## Security Best Practices
+### Step 2: Basic Authentication
 
-1. **Use HTTPS**: Always use HTTPS for your discovery URL and redirect URIs
-2. **Validate Tokens**: Server-side token validation is essential
-3. **Secure Storage**: Tokens are automatically stored securely using platform security
-4. **Certificate Pinning**: Consider implementing certificate pinning for production
-5. **Scope Limitation**: Request only necessary scopes
-6. **Token Lifecycle**: Implement proper token refresh and cleanup
+Create your main authentication screen using the `AuthStateBuilder` widget:
 
-## Development
+```dart
+import 'package:flutter/material.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+import 'package:provider/provider.dart';
 
-### Building the SDK
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
 
-```bash
-flutter packages get
-flutter analyze
-flutter test
+  @override
+  Widget build(BuildContext context) {
+    return AuthStateBuilder(
+      // Loading state
+      loading: (context) => const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      
+      // Unauthenticated state - show login
+      unauthenticated: (context) => const LoginScreen(),
+      
+      // Authenticated state - show main app
+      authenticated: (context) => const DashboardScreen(),
+      
+      // Error state
+      error: (context, error) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: ${error.message}'),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<BlitzWareAuthProvider>().refresh();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'BlitzWare Authentication',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 32),
+            
+            // Use the built-in login button with automatic loading state
+            BlitzWareLoginButton(
+              text: 'Login with BlitzWare',
+              icon: const Icon(Icons.login),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+              ),
+              onPressed: () async {
+                try {
+                  await context.read<BlitzWareAuthProvider>().login();
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Login failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 ```
 
-### Running Tests
+### Step 3: Display User Information
 
-```bash
-flutter test
-flutter test --coverage
+Create a dashboard screen that displays user information and authentication status:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          // Built-in logout button
+          BlitzWareLogoutButton(
+            text: 'Logout',
+            icon: const Icon(Icons.logout, size: 20),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Consumer<BlitzWareAuthProvider>(
+        builder: (context, authProvider, _) {
+          final user = authProvider.user;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Authentication Status
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Authentication Status:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          authProvider.isLoading
+                              ? 'Loading...'
+                              : authProvider.isAuthenticated
+                                  ? 'Authenticated'
+                                  : 'Not Authenticated',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // User Information
+                if (user != null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'User Info:',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _InfoRow(label: 'ID', value: user.id),
+                          _InfoRow(label: 'Email', value: user.email),
+                          _InfoRow(label: 'Username', value: user.username),
+                          _InfoRow(
+                            label: 'Roles',
+                            value: user.roleNames.isNotEmpty
+                                ? user.roleNames.join(', ')
+                                : 'N/A',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+}
 ```
 
-### Contributing
+### Step 4: Access Token Management
 
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+Get access tokens for making authenticated API calls:
 
-## Architecture
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-The SDK follows these architectural principles:
+class ApiScreen extends StatefulWidget {
+  const ApiScreen({super.key});
 
-- **Provider Pattern**: Clean state management
-- **Service Layer**: Separation of concerns
-- **Type Safety**: Comprehensive type definitions
-- **Error Handling**: Robust error management
-- **Security First**: Secure token storage and handling
+  @override
+  State<ApiScreen> createState() => _ApiScreenState();
+}
 
-## Changelog
+class _ApiScreenState extends State<ApiScreen> {
+  String _apiResponse = '';
+  bool _loading = false;
 
-### Version 1.0.0
-- Initial release
-- OAuth 2.0 with PKCE support
-- Role-based access control
-- Provider state management
-- Cross-platform support
-- Comprehensive example app
+  Future<void> _makeApiCall() async {
+    setState(() {
+      _loading = true;
+      _apiResponse = '';
+    });
 
-## Support
+    try {
+      // Get the access token (automatically refreshed if needed)
+      final authProvider = context.read<BlitzWareAuthProvider>();
+      final token = await authProvider.getAccessToken();
 
-For support and questions:
-- Documentation: [docs.blitzware.xyz](https://docs.blitzware.xyz)
-- Issues: GitHub Issues
-- Community: BlitzWare Discord
+      if (token == null) {
+        setState(() {
+          _apiResponse = 'No access token available';
+          _loading = false;
+        });
+        return;
+      }
 
-## License
+      // Make authenticated API call
+      final response = await http.get(
+        Uri.parse('https://api.yourservice.com/protected'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-This SDK is licensed under the MIT License. See LICENSE file for details.
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _apiResponse = 'Success: ${json.encode(data)}';
+        });
+      } else {
+        setState(() {
+          _apiResponse = 'Error: ${response.statusCode}';
+        });
+      }
+    } catch (error) {
+      setState(() {
+        _apiResponse = 'Error: $error';
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('API Integration')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ElevatedButton(
+              onPressed: _loading ? null : _makeApiCall,
+              child: _loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Make Protected API Call'),
+            ),
+            const SizedBox(height: 16),
+            if (_apiResponse.isNotEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(_apiResponse),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Step 5: Role-Based Access Control
+
+Implement role-based features using the `RoleGuard` widget:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+
+class RoleBasedDashboard extends StatelessWidget {
+  const RoleBasedDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Dashboard')),
+      body: Consumer<BlitzWareAuthProvider>(
+        builder: (context, authProvider, _) {
+          final user = authProvider.user;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome, ${user?.username ?? 'User'}!',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('Roles: ${user?.roleNames.join(', ') ?? 'None'}'),
+                const SizedBox(height: 24),
+
+                // Admin-only content using RoleGuard
+                RoleGuard(
+                  role: 'admin',
+                  child: Card(
+                    color: Colors.red.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.admin_panel_settings,
+                                color: Colors.red.shade600,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Admin Panel',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('You have administrative privileges'),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              // Navigate to admin features
+                            },
+                            child: const Text('Manage Users'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  fallback: const SizedBox.shrink(),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Premium-only content
+                RoleGuard(
+                  role: 'premium',
+                  child: Card(
+                    color: Colors.amber.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.star, color: Colors.amber.shade600),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Premium Features',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('Access to exclusive content'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Regular user content (always visible when authenticated)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.dashboard, color: Colors.blue.shade600),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'User Dashboard',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Standard user features available'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+You can also check roles programmatically using the provider:
+
+```dart
+Consumer<BlitzWareAuthProvider>(
+  builder: (context, authProvider, _) {
+    final isAdmin = authProvider.hasRole('admin');
+    final isPremium = authProvider.hasRole('premium');
+    final hasAnyModeratorRole = authProvider.hasAnyRole(['admin', 'moderator']);
+    
+    if (isAdmin) {
+      return const AdminDashboard();
+    } else if (isPremium) {
+      return const PremiumDashboard();
+    } else {
+      return const StandardDashboard();
+    }
+  },
+)
+```
+
+### Step 6: Session Validation
+
+Add session validation for enhanced security:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:blitzware_flutter_sdk/blitzware_flutter_sdk.dart';
+
+class ProtectedScreen extends StatefulWidget {
+  const ProtectedScreen({super.key});
+
+  @override
+  State<ProtectedScreen> createState() => _ProtectedScreenState();
+}
+
+class _ProtectedScreenState extends State<ProtectedScreen> {
+  bool? _sessionValid;
+  bool _validating = false;
+
+  Future<void> _validateSession() async {
+    setState(() {
+      _validating = true;
+    });
+
+    try {
+      final authProvider = context.read<BlitzWareAuthProvider>();
+      final isValid = await authProvider.validateSession();
+      
+      setState(() {
+        _sessionValid = isValid;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isValid
+                  ? 'Session is valid!'
+                  : 'Session expired. Please log in again.',
+            ),
+            backgroundColor: isValid ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to validate session: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _validating = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<BlitzWareAuthProvider>(
+      builder: (context, authProvider, _) {
+        if (!authProvider.isAuthenticated) {
+          return const Scaffold(
+            body: Center(
+              child: Text('Please log in to access this content'),
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('Protected Content')),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Welcome, ${authProvider.user?.username ?? 'User'}!',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Session Status Display
+                if (_sessionValid != null)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _sessionValid!
+                          ? Colors.green.shade50
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _sessionValid!
+                            ? Colors.green.shade200
+                            : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      'Session: ${_sessionValid! ? 'Valid' : 'Invalid'}',
+                      style: TextStyle(
+                        color: _sessionValid!
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                ElevatedButton(
+                  onPressed: _validating ? null : _validateSession,
+                  child: _validating
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Check Session'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+---
+
+That's it! You now have a fully functional Flutter application with BlitzWare authentication.
+
+For more information, check out the [example app](https://github.com/LanderDK/blitzware_flutter_sdk/tree/master/examples/example1) which demonstrates all these features and more.
