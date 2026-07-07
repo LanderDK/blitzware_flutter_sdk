@@ -1,17 +1,28 @@
 /// Configuration for BlitzWare authentication
 class BlitzWareConfig {
+  static const String defaultAuthBaseUrl = 'https://auth.blitzware.xyz/api/auth/';
+
   final String clientId;
   final String redirectUri;
   final String responseType;
+  final String? authBaseUrl;
 
   const BlitzWareConfig({
     required this.clientId,
     required this.redirectUri,
     this.responseType = 'code',
+    this.authBaseUrl,
   });
 
-  /// Get the issuer URL
-  String get issuer => 'https://auth.blitzware.xyz/api/auth';
+  /// Get the normalized auth API base URL without a trailing slash.
+  String get issuer {
+    final value = (authBaseUrl == null || authBaseUrl!.trim().isEmpty)
+        ? defaultAuthBaseUrl
+        : authBaseUrl!.trim();
+    final uri = Uri.parse(value);
+    final normalizedPath = uri.path.replaceAll(RegExp(r'/+$'), '');
+    return uri.replace(path: normalizedPath, query: null, fragment: null).toString();
+  }
 
   /// Get the authorization endpoint
   String get authorizationEndpoint => '$issuer/authorize';
@@ -43,6 +54,15 @@ class BlitzWareConfig {
 
     if (responseType != 'code' && responseType != 'token') {
       errors.add('responseType must be "code" or "token"');
+    }
+
+    try {
+      final uri = Uri.parse(issuer);
+      if (!uri.hasScheme || uri.host.isEmpty) {
+        errors.add('authBaseUrl must be an absolute URL');
+      }
+    } catch (_) {
+      errors.add('authBaseUrl must be a valid URL');
     }
 
     return errors;

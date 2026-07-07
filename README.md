@@ -113,6 +113,9 @@ class MyApp extends StatelessWidget {
       clientId: 'your-client-id',
       redirectUri: 'yourapp://callback',
       responseType: 'code', // OAuth 2.0 authorization code flow
+      // Optional managed auth domain from the BlitzWare dashboard.
+      // Defaults to https://auth.blitzware.xyz/api/auth/
+      authBaseUrl: 'https://acme.auth.blitzware.xyz/api/auth/',
     );
 
     // Create authentication service
@@ -777,6 +780,12 @@ class _ProtectedScreenState extends State<ProtectedScreen> {
 ```
 
 ---
+
+## Managed Auth Domains
+
+`authBaseUrl` is optional. Omit it to keep using `https://auth.blitzware.xyz/api/auth/`; set it to the managed auth domain shown in the BlitzWare dashboard, such as `https://acme.auth.blitzware.xyz/api/auth/`.
+
+If Google, Microsoft, Discord, or another social provider is enabled, add the managed-domain callback URL in that provider's settings before switching users to the managed domain. This option does not require JWKS, ID tokens, or OIDC discovery configuration.
 
 That's it! You now have a fully functional Flutter application with BlitzWare authentication.
 
