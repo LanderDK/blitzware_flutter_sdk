@@ -17,7 +17,7 @@ dependencies:
   # Authentication & HTTP
   http: ^1.1.0
   flutter_appauth: ^6.0.2
-  flutter_secure_storage: ^9.0.0
+  flutter_secure_storage: ">=9.0.0 <11.0.0"
   
   # State Management
   provider: ^6.1.1
